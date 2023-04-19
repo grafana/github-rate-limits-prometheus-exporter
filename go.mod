@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.2.0
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/migueleliasweb/go-github-mock v0.0.16
+	github.com/migueleliasweb/go-github-mock v0.0.17
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.2
 	golang.org/x/oauth2 v0.6.0
