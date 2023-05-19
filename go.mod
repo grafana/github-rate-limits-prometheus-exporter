@@ -7,7 +7,7 @@ require (
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/migueleliasweb/go-github-mock v0.0.16
 	github.com/prometheus/client_golang v1.14.0
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.3
 	golang.org/x/oauth2 v0.6.0
 )
 
