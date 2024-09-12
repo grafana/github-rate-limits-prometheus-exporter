@@ -5,6 +5,8 @@ import "github.com/google/go-github/github"
 type AppConfig struct {
 	AppID          int64
 	InstallationID int64
+	OrgName        string
+	RepoName       string
 	PrivateKeyPath string
 }
 
