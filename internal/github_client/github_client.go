@@ -48,14 +48,15 @@ func (c AppConfig) InitClient() *github.Client {
 		}
 		client := auth.InitClient()
 
+		var err error
+		var installation *github.Installation
 		ctx := context.Background()
-		installation, _, err := client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
-		utils.RespError(err)
-
 		if c.RepoName != "" {
 			installation, _, err = client.Apps.FindRepositoryInstallation(ctx, c.OrgName, c.RepoName)
-			utils.RespError(err)
+		} else {
+			installation, _, err = client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
 		}
+		utils.RespError(err)
 
 		c.InstallationID = installation.GetID()
 	}
@@ -85,7 +86,7 @@ func InitConfig() GithubClient {
 		var installationID int64
 		envInstallationID := utils.GetOSVar("GITHUB_INSTALLATION_ID")
 		if envInstallationID != "" {
-			installationID, _ = strconv.ParseInt(utils.GetOSVar("GITHUB_INSTALLATION_ID"), 10, 64)
+			installationID, _ = strconv.ParseInt(envInstallationID, 10, 64)
 		}
 
 		auth = AppConfig{
