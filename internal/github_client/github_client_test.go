@@ -89,3 +89,20 @@ func TestInitConfigFailure(t *testing.T) {
 	assert.Equal(t, nil, patInitConfig)
 
 }
+
+func TestInitConfigAppWithoutInstallationID(t *testing.T) {
+	os.Setenv("GITHUB_AUTH_TYPE", "APP")
+	os.Setenv("GITHUB_APP_ID", "1")
+	os.Setenv("GITHUB_ORG_NAME", "org")
+	os.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
+
+	testAuth := AppConfig{
+		AppID:          1,
+		OrgName:        "org",
+		PrivateKeyPath: "/home",
+	}
+
+	appInitConfig := InitConfig()
+
+	assert.Equal(t, appInitConfig, testAuth, "should be equal")
+}
