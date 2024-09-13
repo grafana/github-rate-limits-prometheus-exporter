@@ -31,55 +31,12 @@ func GetRemainingLimits(c *github.Client) RateLimits {
 	}
 }
 
-func (c *TokenConfig) InitClient(httpClient *http.Client) *github.Client {
-	if httpClient == nil {
-		ctx := context.Background()
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: c.Token},
-		)
-		httpClient = oauth2.NewClient(ctx, ts)
-	}
-	return github.NewClient(httpClient)
+func (c *TokenConfig) InitClient() *github.Client {
+	return initTokenClient(c, http.DefaultClient)
 }
 
-func (c *AppConfig) InitClient(httpClient *http.Client) *github.Client {
-	if c.InstallationID == 0 && c.OrgName != "" {
-		// Retrieve the installation ID if not provided
-		auth := TokenConfig{
-			Token: generateJWT(c.AppID, c.PrivateKeyPath),
-		}
-		client := auth.InitClient(httpClient)
-
-		var err error
-		var installation *github.Installation
-		ctx := context.Background()
-		if c.RepoName != "" {
-			installation, _, err = client.Apps.FindRepositoryInstallation(ctx, c.OrgName, c.RepoName)
-		} else {
-			installation, _, err = client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
-		}
-		utils.RespError(err)
-
-		c.InstallationID = installation.GetID()
-	}
-
-	if httpClient == nil {
-		tr := http.DefaultTransport
-		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
-		utils.RespError(err)
-		httpClient = &http.Client{Transport: itr}
-	} else {
-		// Wrap the existing transport
-		tr := httpClient.Transport
-		if tr == nil {
-			tr = http.DefaultTransport
-		}
-		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
-		utils.RespError(err)
-		httpClient.Transport = itr
-	}
-
-	return github.NewClient(httpClient)
+func (c *AppConfig) InitClient() *github.Client {
+	return initAppClient(c, http.DefaultClient)
 }
 
 func InitConfig() GithubClient {
@@ -115,6 +72,59 @@ func InitConfig() GithubClient {
 
 	return auth
 
+}
+
+// Helper function to allow testing client initialization with custom http clients
+func initTokenClient(c *TokenConfig, httpClient *http.Client) *github.Client {
+	if httpClient == http.DefaultClient {
+		ctx := context.Background()
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: c.Token},
+		)
+		httpClient = oauth2.NewClient(ctx, ts)
+	}
+	return github.NewClient(httpClient)
+}
+
+// Helper function to allow testing client initialization with custom http clients
+func initAppClient(c *AppConfig, httpClient *http.Client) *github.Client {
+	if c.InstallationID == 0 && c.OrgName != "" {
+		// Retrieve the installation ID if not provided
+		auth := &TokenConfig{
+			Token: generateJWT(c.AppID, c.PrivateKeyPath),
+		}
+		client := initTokenClient(auth, httpClient)
+
+		var err error
+		var installation *github.Installation
+		ctx := context.Background()
+		if c.RepoName != "" {
+			installation, _, err = client.Apps.FindRepositoryInstallation(ctx, c.OrgName, c.RepoName)
+		} else {
+			installation, _, err = client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
+		}
+		utils.RespError(err)
+
+		c.InstallationID = installation.GetID()
+	}
+
+	if httpClient == http.DefaultClient {
+		tr := http.DefaultTransport
+		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
+		utils.RespError(err)
+		httpClient = &http.Client{Transport: itr}
+	} else {
+		// Wrap the existing transport
+		tr := httpClient.Transport
+		if tr == nil {
+			tr = http.DefaultTransport
+		}
+		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
+		utils.RespError(err)
+		httpClient.Transport = itr
+	}
+
+	return github.NewClient(httpClient)
 }
 
 // Helper function to generate JWT for GitHub App

@@ -1,8 +1,6 @@
 package github_client
 
 import (
-	"net/http"
-
 	"github.com/google/go-github/github"
 )
 
@@ -26,5 +24,5 @@ type RateLimits struct {
 }
 
 type GithubClient interface {
-	InitClient(httpClient *http.Client) *github.Client
+	InitClient() *github.Client
 }

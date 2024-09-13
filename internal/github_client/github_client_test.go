@@ -220,7 +220,7 @@ func TestAppConfig_InitClient(t *testing.T) {
 				PrivateKeyPath: privateKeyPath,
 			}
 
-			client := c.InitClient(httpClient)
+			client := initAppClient(c, httpClient)
 			assert.NotNil(t, client, "Expected client not to be nil")
 
 			assert.Equal(t, tc.expectedInstallID, c.InstallationID, "Expected InstallationID to be set correctly")
