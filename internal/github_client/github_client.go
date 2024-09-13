@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-github/github"
 	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/utils"
 	"golang.org/x/oauth2"
@@ -115,10 +115,10 @@ func generateJWT(appID int64, privateKeyPath string) string {
 	utils.RespError(err)
 
 	now := time.Now()
-	claims := jwt.StandardClaims{
+	claims := jwt.RegisteredClaims{
 		Issuer:    fmt.Sprintf("%d", appID),
-		IssuedAt:  now.Unix(),
-		ExpiresAt: now.Add(time.Minute * 10).Unix(),
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(10 * time.Minute)),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
