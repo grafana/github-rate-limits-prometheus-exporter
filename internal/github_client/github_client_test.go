@@ -168,7 +168,7 @@ func TestAppConfig_InitClient(t *testing.T) {
 			repoName:          "",
 			providedInstallID: 0, // To be retrieved via API
 			expectedInstallID: 654321,
-			expectedPattern:   "/orgs/testorg/installation",
+			expectedPattern:   "/orgs/{org}/installation",
 			method:            "GET",
 		},
 		{
@@ -177,7 +177,7 @@ func TestAppConfig_InitClient(t *testing.T) {
 			repoName:          "testrepo",
 			providedInstallID: 0, // To be retrieved via API
 			expectedInstallID: 654321,
-			expectedPattern:   "/repos/testorg/testrepo/installation",
+			expectedPattern:   "/repos/{owner}/{repo}/installation",
 			method:            "GET",
 		},
 	}
