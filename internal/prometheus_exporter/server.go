@@ -50,7 +50,7 @@ func (collector *LimitsCollector) Describe(ch chan<- *prometheus.Desc) {
 func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	auth := github_client.InitConfig()
-	limits := github_client.GetRemainingLimits(auth.InitClient())
+	limits := github_client.GetRemainingLimits(auth.InitClient(nil))
 	log.Printf("Collected metrics for %s", githubAccount)
 	log.Printf("Limit: %d | Used: %d | Remaining: %d", limits.Limit, limits.Used, limits.Remaining)
 	//Write latest value for each metric in the prometheus metric channel.

@@ -1,6 +1,10 @@
 package github_client
 
-import "github.com/google/go-github/github"
+import (
+	"net/http"
+
+	"github.com/google/go-github/github"
+)
 
 type AppConfig struct {
 	AppID          int64
@@ -22,5 +26,5 @@ type RateLimits struct {
 }
 
 type GithubClient interface {
-	InitClient() *github.Client
+	InitClient(httpClient *http.Client) *github.Client
 }

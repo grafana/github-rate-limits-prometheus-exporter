@@ -31,22 +31,24 @@ func GetRemainingLimits(c *github.Client) RateLimits {
 	}
 }
 
-func (c TokenConfig) InitClient() *github.Client {
-	ctx := context.Background()
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: c.Token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-	return github.NewClient(tc)
+func (c *TokenConfig) InitClient(httpClient *http.Client) *github.Client {
+	if httpClient == nil {
+		ctx := context.Background()
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: c.Token},
+		)
+		httpClient = oauth2.NewClient(ctx, ts)
+	}
+	return github.NewClient(httpClient)
 }
 
-func (c AppConfig) InitClient() *github.Client {
+func (c *AppConfig) InitClient(httpClient *http.Client) *github.Client {
 	if c.InstallationID == 0 && c.OrgName != "" {
 		// Retrieve the installation ID if not provided
 		auth := TokenConfig{
 			Token: generateJWT(c.AppID, c.PrivateKeyPath),
 		}
-		client := auth.InitClient()
+		client := auth.InitClient(httpClient)
 
 		var err error
 		var installation *github.Installation
@@ -61,14 +63,23 @@ func (c AppConfig) InitClient() *github.Client {
 		c.InstallationID = installation.GetID()
 	}
 
-	tr := http.DefaultTransport
+	if httpClient == nil {
+		tr := http.DefaultTransport
+		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
+		utils.RespError(err)
+		httpClient = &http.Client{Transport: itr}
+	} else {
+		// Wrap the existing transport
+		tr := httpClient.Transport
+		if tr == nil {
+			tr = http.DefaultTransport
+		}
+		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
+		utils.RespError(err)
+		httpClient.Transport = itr
+	}
 
-	// Wrap the shared transport for use with the app ID 1 authenticating with installation ID 99.
-	itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
-	utils.RespError(err)
-
-	// Use installation transport with github.com/google/go-github
-	return github.NewClient(&http.Client{Transport: itr})
+	return github.NewClient(httpClient)
 }
 
 func InitConfig() GithubClient {
@@ -76,7 +87,7 @@ func InitConfig() GithubClient {
 	var auth GithubClient
 	authType := utils.GetOSVar("GITHUB_AUTH_TYPE")
 	if authType == "PAT" {
-		auth = TokenConfig{
+		auth = &TokenConfig{
 			Token: utils.GetOSVar("GITHUB_TOKEN"),
 		}
 
@@ -89,7 +100,7 @@ func InitConfig() GithubClient {
 			installationID, _ = strconv.ParseInt(envInstallationID, 10, 64)
 		}
 
-		auth = AppConfig{
+		auth = &AppConfig{
 			AppID:          appID,
 			InstallationID: installationID,
 			OrgName:        utils.GetOSVar("GITHUB_ORG_NAME"),
