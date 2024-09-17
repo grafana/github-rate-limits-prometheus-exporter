@@ -10,7 +10,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v65/github"
 	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/utils"
 	"golang.org/x/oauth2"
 )
@@ -18,7 +18,7 @@ import (
 func GetRemainingLimits(c *github.Client) RateLimits {
 	ctx := context.Background()
 
-	limits, _, err := c.RateLimits(ctx)
+	limits, _, err := c.RateLimit.Get(ctx)
 	if err != nil {
 		utils.RespError(err)
 	}
