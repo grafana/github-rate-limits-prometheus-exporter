@@ -1,6 +1,7 @@
 package github_client
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -10,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,34 +19,28 @@ import (
 	"github.com/google/go-github/v65/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func generateTestPrivateKey(t *testing.T) (string, *rsa.PrivateKey) {
-	// Generate RSA private key
+	t.Helper()
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Failed to generate RSA private key: %v", err)
 	}
 
-	// Convert private key to PEM format
 	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
 	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: privateKeyBytes,
 	})
 
-	// Write private key to a temp file
-	tempKeyFile, err := os.CreateTemp("", "testkey")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer tempKeyFile.Close()
-
-	if _, err := tempKeyFile.Write(privateKeyPEM); err != nil {
-		t.Fatalf("Failed to write to temp key file: %v", err)
+	path := filepath.Join(t.TempDir(), "testkey.pem")
+	if err := os.WriteFile(path, privateKeyPEM, 0600); err != nil {
+		t.Fatalf("Failed to write temp key file: %v", err)
 	}
 
-	return tempKeyFile.Name(), privateKey
+	return path, privateKey
 }
 
 func TestGetRemainingLimits(t *testing.T) {
@@ -72,7 +68,7 @@ func TestGetRemainingLimits(t *testing.T) {
 		),
 	)
 	c := github.NewClient(mockedHTTPClient)
-	limits := GetRemainingLimits(c)
+	limits, _ := GetRemainingLimits(c, context.Background())
 
 	assert.Equal(t, limit, limits.Limit, "The limits should be equal")
 	assert.Equal(t, remaining, limits.Remaining, "The remaining limits should be equal")
@@ -97,8 +93,8 @@ func TestInitConfigApp(t *testing.T) {
 		PrivateKeyPath: "/home",
 	}
 
-	appInitConfig := InitConfig()
-
+	appInitConfig, err := InitConfig()
+	require.NoError(t, err)
 	assert.Equal(t, appInitConfig, testAuth, "should be equal")
 
 }
@@ -111,22 +107,70 @@ func TestInitConfigPAT(t *testing.T) {
 		Token: "token_ahsd",
 	}
 
-	patInitConfig := InitConfig()
-
+	patInitConfig, err := InitConfig()
+	require.NoError(t, err)
 	assert.Equal(t, patInitConfig, testAuth, "should be equal")
 
 }
 
 func TestInitConfigFailure(t *testing.T) {
-	t.Setenv("GITHUB_AUTH_TYPE", "test")
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{
+			name:    "invalid auth type",
+			env:     map[string]string{"GITHUB_AUTH_TYPE": "test"},
+			wantErr: "invalid auth type",
+		},
+		{
+			name:    "missing auth type",
+			env:     map[string]string{"GITHUB_AUTH_TYPE": ""},
+			wantErr: "invalid auth type",
+		},
+		{
+			name: "missing GITHUB_APP_ID",
+			env: map[string]string{
+				"GITHUB_AUTH_TYPE": "APP",
+				"GITHUB_APP_ID":    "",
+			},
+			wantErr: "GITHUB_APP_ID",
+		},
+		{
+			name: "non-numeric GITHUB_APP_ID",
+			env: map[string]string{
+				"GITHUB_AUTH_TYPE": "APP",
+				"GITHUB_APP_ID":    "not-a-number",
+			},
+			wantErr: "GITHUB_APP_ID",
+		},
+		{
+			name: "non-numeric GITHUB_INSTALLATION_ID",
+			env: map[string]string{
+				"GITHUB_AUTH_TYPE":        "APP",
+				"GITHUB_APP_ID":           "1",
+				"GITHUB_INSTALLATION_ID":  "not-a-number",
+				"GITHUB_PRIVATE_KEY_PATH": "/home",
+			},
+			wantErr: "GITHUB_INSTALLATION_ID",
+		},
+	}
 
-	patInitConfig := InitConfig()
-
-	assert.Equal(t, nil, patInitConfig)
-
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			_, err := InitConfig()
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestInitConfigAppWithoutInstallationID(t *testing.T) {
+	t.Setenv("GITHUB_INSTALLATION_ID", "")
 	t.Setenv("GITHUB_AUTH_TYPE", "APP")
 	t.Setenv("GITHUB_APP_ID", "1")
 	t.Setenv("GITHUB_ORG_NAME", "org")
@@ -138,9 +182,9 @@ func TestInitConfigAppWithoutInstallationID(t *testing.T) {
 		PrivateKeyPath: "/home",
 	}
 
-	appInitConfig := InitConfig()
-
-	assert.Equal(t, appInitConfig, testAuth, "should be equal")
+	appInitConfig, err := InitConfig()
+	require.NoError(t, err)
+	assert.Equal(t, testAuth, appInitConfig, "should be equal")
 }
 
 func TestAppConfig_InitClient(t *testing.T) {
@@ -185,7 +229,6 @@ func TestAppConfig_InitClient(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			privateKeyPath, _ := generateTestPrivateKey(t)
-			defer os.Remove(privateKeyPath)
 
 			appID := int64(123456)
 			var httpClient *http.Client
@@ -220,21 +263,114 @@ func TestAppConfig_InitClient(t *testing.T) {
 				PrivateKeyPath: privateKeyPath,
 			}
 
-			client := initAppClient(c, httpClient)
-			assert.NotNil(t, client, "Expected client not to be nil")
+			client, err := initAppClient(c, httpClient)
+			require.NoError(t, err)
+			require.NotNil(t, client, "Expected client not to be nil")
 
 			assert.Equal(t, tc.expectedInstallID, c.InstallationID, "Expected InstallationID to be set correctly")
 		})
 	}
 }
 
+func TestInitAppClient_Errors(t *testing.T) {
+	t.Run("nil http client", func(t *testing.T) {
+		c := &AppConfig{AppID: 1, InstallationID: 1, PrivateKeyPath: "/some/path"}
+		_, err := initAppClient(c, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("bad private key path when fetching installation ID", func(t *testing.T) {
+		// generateJWT is called before any API request; it should fail immediately.
+		c := &AppConfig{
+			AppID:          123456,
+			InstallationID: 0,
+			OrgName:        "testorg",
+			PrivateKeyPath: "/nonexistent/key.pem",
+		}
+		_, err := initAppClient(c, mock.NewMockedHTTPClient())
+		require.Error(t, err)
+	})
+
+	t.Run("API error from FindOrganizationInstallation", func(t *testing.T) {
+		privateKeyPath, _ := generateTestPrivateKey(t)
+
+		mockClient := mock.NewMockedHTTPClient(
+			mock.WithRequestMatchHandler(
+				mock.EndpointPattern{Pattern: "/orgs/{org}/installation", Method: "GET"},
+				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprint(w, `{"message":"Not Found"}`)
+				}),
+			),
+		)
+		c := &AppConfig{
+			AppID:          123456,
+			InstallationID: 0,
+			OrgName:        "testorg",
+			PrivateKeyPath: privateKeyPath,
+		}
+		_, err := initAppClient(c, mockClient)
+		require.Error(t, err)
+	})
+
+	t.Run("API error from FindRepositoryInstallation", func(t *testing.T) {
+		privateKeyPath, _ := generateTestPrivateKey(t)
+
+		mockClient := mock.NewMockedHTTPClient(
+			mock.WithRequestMatchHandler(
+				mock.EndpointPattern{Pattern: "/repos/{owner}/{repo}/installation", Method: "GET"},
+				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.WriteHeader(http.StatusNotFound)
+					fmt.Fprint(w, `{"message":"Not Found"}`)
+				}),
+			),
+		)
+		c := &AppConfig{
+			AppID:          123456,
+			InstallationID: 0,
+			OrgName:        "testorg",
+			RepoName:       "testrepo",
+			PrivateKeyPath: privateKeyPath,
+		}
+		_, err := initAppClient(c, mockClient)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid private key content when initializing ghinstallation transport", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "bad.pem")
+		require.NoError(t, os.WriteFile(path, []byte("this is not a valid PEM key"), 0600))
+
+		c := &AppConfig{
+			AppID:          123456,
+			InstallationID: 654321,
+			PrivateKeyPath: path,
+		}
+		_, err := initAppClient(c, http.DefaultClient)
+		require.Error(t, err)
+	})
+}
+
+func TestGenerateJWT_Errors(t *testing.T) {
+	t.Run("non-existent key file", func(t *testing.T) {
+		_, err := generateJWT(123456, "/nonexistent/key.pem")
+		require.Error(t, err)
+	})
+
+	t.Run("invalid PEM content", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "bad.pem")
+		require.NoError(t, os.WriteFile(path, []byte("this is not a valid PEM key"), 0600))
+
+		_, err := generateJWT(123456, path)
+		require.Error(t, err)
+	})
+}
+
 func TestGenerateJWT(t *testing.T) {
 	privateKeyPath, privateKey := generateTestPrivateKey(t)
-	defer os.Remove(privateKeyPath)
 
 	appID := int64(123456)
-	token := generateJWT(appID, privateKeyPath)
-
+	token, err := generateJWT(appID, privateKeyPath)
+	require.NoError(t, err)
 	assert.NotEmpty(t, token, "expected token not to be empty")
 
 	// Verify the token

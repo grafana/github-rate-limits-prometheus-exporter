@@ -1,21 +1,22 @@
 package prometheus_exporter
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/github_client"
-	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
-	githubAccount = utils.GetOSVar("GITHUB_ACCOUNT_NAME")
+	githubAccount = os.Getenv("GITHUB_ACCOUNT_NAME")
 )
 
-func newLimitsCollector() *LimitsCollector {
+func newLimitsCollector(ghClient github_client.GithubClient) *LimitsCollector {
 	return &LimitsCollector{
 		LimitTotal: prometheus.NewDesc(prometheus.BuildFQName("github", "limit", "total"),
 			"Total limit of requests for the installation",
@@ -37,6 +38,8 @@ func newLimitsCollector() *LimitsCollector {
 			nil, prometheus.Labels{
 				"account": githubAccount,
 			}),
+
+		ghClient: ghClient,
 	}
 }
 
@@ -48,9 +51,20 @@ func (collector *LimitsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
+	ghc, err := collector.ghClient.InitClient()
+	if err != nil {
+		log.Printf("failed to initialize GitHub client: %s", err.Error())
+		return
+	}
 
-	auth := github_client.InitConfig()
-	limits := github_client.GetRemainingLimits(auth.InitClient())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	limits, err := github_client.GetRemainingLimits(ghc, ctx)
+	if err != nil {
+		log.Printf("failed to retrieve remaining limits: %s", err.Error())
+		return
+	}
 	log.Printf("Collected metrics for %s", githubAccount)
 	log.Printf("Limit: %d | Used: %d | Remaining: %d", limits.Limit, limits.Used, limits.Remaining)
 	//Write latest value for each metric in the prometheus metric channel.
@@ -70,10 +84,16 @@ func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func Run() {
-	limit := newLimitsCollector()
+	auth, err := github_client.InitConfig()
+	if err != nil {
+		log.Fatalf("failed to initialize GitHub client config: %s", err.Error())
+	}
+	limit := newLimitsCollector(auth)
 	prometheus.NewRegistry()
 	prometheus.MustRegister(limit)
 
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":2112", nil)
+	if err := http.ListenAndServe(":2112", nil); err != nil {
+		log.Fatalf("HTTP listener failed: %s", err.Error())
+	}
 }
