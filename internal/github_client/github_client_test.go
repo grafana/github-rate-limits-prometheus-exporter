@@ -86,10 +86,10 @@ func TestGetRemainingLimits(t *testing.T) {
 }
 
 func TestInitConfigApp(t *testing.T) {
-	os.Setenv("GITHUB_AUTH_TYPE", "APP")
-	os.Setenv("GITHUB_APP_ID", "1")
-	os.Setenv("GITHUB_INSTALLATION_ID", "1")
-	os.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
+	t.Setenv("GITHUB_AUTH_TYPE", "APP")
+	t.Setenv("GITHUB_APP_ID", "1")
+	t.Setenv("GITHUB_INSTALLATION_ID", "1")
+	t.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
 
 	testAuth := &AppConfig{
 		AppID:          1,
@@ -104,8 +104,8 @@ func TestInitConfigApp(t *testing.T) {
 }
 
 func TestInitConfigPAT(t *testing.T) {
-	os.Setenv("GITHUB_AUTH_TYPE", "PAT")
-	os.Setenv("GITHUB_TOKEN", "token_ahsd")
+	t.Setenv("GITHUB_AUTH_TYPE", "PAT")
+	t.Setenv("GITHUB_TOKEN", "token_ahsd")
 
 	testAuth := &TokenConfig{
 		Token: "token_ahsd",
@@ -118,7 +118,7 @@ func TestInitConfigPAT(t *testing.T) {
 }
 
 func TestInitConfigFailure(t *testing.T) {
-	os.Setenv("GITHUB_AUTH_TYPE", "test")
+	t.Setenv("GITHUB_AUTH_TYPE", "test")
 
 	patInitConfig := InitConfig()
 
@@ -127,10 +127,10 @@ func TestInitConfigFailure(t *testing.T) {
 }
 
 func TestInitConfigAppWithoutInstallationID(t *testing.T) {
-	os.Setenv("GITHUB_AUTH_TYPE", "APP")
-	os.Setenv("GITHUB_APP_ID", "1")
-	os.Setenv("GITHUB_ORG_NAME", "org")
-	os.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
+	t.Setenv("GITHUB_AUTH_TYPE", "APP")
+	t.Setenv("GITHUB_APP_ID", "1")
+	t.Setenv("GITHUB_ORG_NAME", "org")
+	t.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
 
 	testAuth := &AppConfig{
 		AppID:          1,
@@ -208,7 +208,7 @@ func TestAppConfig_InitClient(t *testing.T) {
 				)
 				httpClient = mockClient
 			} else {
-				httpClient = nil // No HTTP client needed; no API call expected
+				httpClient = http.DefaultClient
 			}
 
 			// Initialize the AppConfig
