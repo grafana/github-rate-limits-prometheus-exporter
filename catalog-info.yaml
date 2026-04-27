@@ -1,0 +1,14 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: github-rate-limit-prometheus-exporter
+  title: GitHub Rate Limit Exporter
+  description: "Exporter for GitHub Rate Limit information"
+  tags:
+    - opensource
+  annotations:
+    github.com/project-slug: grafana/github-rate-limit-prometheus-exporter
+spec:
+  type: application
+  owner: group:platform-productivity
+  lifecycle: production
