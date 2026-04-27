@@ -68,7 +68,8 @@ func TestGetRemainingLimits(t *testing.T) {
 		),
 	)
 	c := github.NewClient(mockedHTTPClient)
-	limits, _ := GetRemainingLimits(c, context.Background())
+	limits, err := GetRemainingLimits(c, context.Background())
+	require.NoError(t, err)
 
 	assert.Equal(t, limit, limits.Limit, "The limits should be equal")
 	assert.Equal(t, remaining, limits.Remaining, "The remaining limits should be equal")

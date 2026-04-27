@@ -51,7 +51,7 @@ func InitConfig() (GithubClient, error) {
 			return nil, fmt.Errorf("failed to parse GITHUB_APP_ID: %w", err)
 		}
 
-		var installationID int64 = 0
+		var installationID int64
 		envInstallationID := os.Getenv("GITHUB_INSTALLATION_ID")
 		if envInstallationID != "" {
 			installationID, err = strconv.ParseInt(envInstallationID, 10, 64)
