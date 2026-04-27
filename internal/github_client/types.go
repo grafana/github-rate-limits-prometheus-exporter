@@ -24,5 +24,5 @@ type RateLimits struct {
 }
 
 type GithubClient interface {
-	InitClient() *github.Client
+	InitClient() (*github.Client, error)
 }

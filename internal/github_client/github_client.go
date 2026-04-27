@@ -11,16 +11,13 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/go-github/v65/github"
-	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/utils"
 	"golang.org/x/oauth2"
 )
 
-func GetRemainingLimits(c *github.Client) RateLimits {
-	ctx := context.Background()
-
+func GetRemainingLimits(c *github.Client, ctx context.Context) (RateLimits, error) {
 	limits, _, err := c.RateLimit.Get(ctx)
 	if err != nil {
-		utils.RespError(err)
+		return RateLimits{}, err
 	}
 
 	return RateLimits{
@@ -28,54 +25,58 @@ func GetRemainingLimits(c *github.Client) RateLimits {
 		Remaining:   limits.Core.Remaining,
 		Used:        limits.Core.Limit - limits.Core.Remaining,
 		SecondsLeft: time.Until(limits.Core.Reset.Time).Seconds(),
-	}
+	}, nil
 }
 
-func (c *TokenConfig) InitClient() *github.Client {
+func (c *TokenConfig) InitClient() (*github.Client, error) {
 	return initTokenClient(c, http.DefaultClient)
 }
 
-func (c *AppConfig) InitClient() *github.Client {
+func (c *AppConfig) InitClient() (*github.Client, error) {
 	return initAppClient(c, http.DefaultClient)
 }
 
-func InitConfig() GithubClient {
+func InitConfig() (GithubClient, error) {
 	// determine type (app or pat)
 	var auth GithubClient
-	authType := utils.GetOSVar("GITHUB_AUTH_TYPE")
+	authType := os.Getenv("GITHUB_AUTH_TYPE")
 	if authType == "PAT" {
 		auth = &TokenConfig{
-			Token: utils.GetOSVar("GITHUB_TOKEN"),
+			Token: os.Getenv("GITHUB_TOKEN"),
 		}
 
 	} else if authType == "APP" {
-		appID, _ := strconv.ParseInt(utils.GetOSVar("GITHUB_APP_ID"), 10, 64)
+		appID, err := strconv.ParseInt(os.Getenv("GITHUB_APP_ID"), 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse GITHUB_APP_ID: %w", err)
+		}
 
 		var installationID int64
-		envInstallationID := utils.GetOSVar("GITHUB_INSTALLATION_ID")
+		envInstallationID := os.Getenv("GITHUB_INSTALLATION_ID")
 		if envInstallationID != "" {
-			installationID, _ = strconv.ParseInt(envInstallationID, 10, 64)
+			installationID, err = strconv.ParseInt(envInstallationID, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse GITHUB_INSTALLATION_ID: %w", err)
+			}
 		}
 
 		auth = &AppConfig{
 			AppID:          appID,
 			InstallationID: installationID,
-			OrgName:        utils.GetOSVar("GITHUB_ORG_NAME"),
-			RepoName:       utils.GetOSVar("GITHUB_REPO_NAME"),
-			PrivateKeyPath: utils.GetOSVar("GITHUB_PRIVATE_KEY_PATH"),
+			OrgName:        os.Getenv("GITHUB_ORG_NAME"),
+			RepoName:       os.Getenv("GITHUB_REPO_NAME"),
+			PrivateKeyPath: os.Getenv("GITHUB_PRIVATE_KEY_PATH"),
 		}
 	} else {
-		err := fmt.Errorf("invalid auth type")
-		utils.RespError(err)
-		return nil
+		return nil, fmt.Errorf("invalid auth type")
 	}
 
-	return auth
+	return auth, nil
 
 }
 
 // Helper function to allow testing client initialization with custom http clients
-func initTokenClient(c *TokenConfig, httpClient *http.Client) *github.Client {
+func initTokenClient(c *TokenConfig, httpClient *http.Client) (*github.Client, error) {
 	if httpClient == http.DefaultClient {
 		ctx := context.Background()
 		ts := oauth2.StaticTokenSource(
@@ -83,19 +84,28 @@ func initTokenClient(c *TokenConfig, httpClient *http.Client) *github.Client {
 		)
 		httpClient = oauth2.NewClient(ctx, ts)
 	}
-	return github.NewClient(httpClient)
+	return github.NewClient(httpClient), nil
 }
 
 // Helper function to allow testing client initialization with custom http clients
-func initAppClient(c *AppConfig, httpClient *http.Client) *github.Client {
+func initAppClient(c *AppConfig, httpClient *http.Client) (*github.Client, error) {
+	if httpClient == nil {
+		return nil, fmt.Errorf("no http-client provided")
+	}
 	if c.InstallationID == 0 && c.OrgName != "" {
+		token, err := generateJWT(c.AppID, c.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate JWT: %w", err)
+		}
 		// Retrieve the installation ID if not provided
 		auth := &TokenConfig{
-			Token: generateJWT(c.AppID, c.PrivateKeyPath),
+			Token: token,
 		}
-		client := initTokenClient(auth, httpClient)
+		client, err := initTokenClient(auth, httpClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize token client: %w", err)
+		}
 
-		var err error
 		var installation *github.Installation
 		ctx := context.Background()
 		if c.RepoName != "" {
@@ -103,15 +113,18 @@ func initAppClient(c *AppConfig, httpClient *http.Client) *github.Client {
 		} else {
 			installation, _, err = client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
 		}
-		utils.RespError(err)
-
+		if err != nil {
+			return nil, err
+		}
 		c.InstallationID = installation.GetID()
 	}
 
 	if httpClient == http.DefaultClient {
 		tr := http.DefaultTransport
 		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
-		utils.RespError(err)
+		if err != nil {
+			return nil, err
+		}
 		httpClient = &http.Client{Transport: itr}
 	} else {
 		// Wrap the existing transport
@@ -120,20 +133,26 @@ func initAppClient(c *AppConfig, httpClient *http.Client) *github.Client {
 			tr = http.DefaultTransport
 		}
 		itr, err := ghinstallation.NewKeyFromFile(tr, c.AppID, c.InstallationID, c.PrivateKeyPath)
-		utils.RespError(err)
+		if err != nil {
+			return nil, err
+		}
 		httpClient.Transport = itr
 	}
 
-	return github.NewClient(httpClient)
+	return github.NewClient(httpClient), nil
 }
 
 // Helper function to generate JWT for GitHub App
-func generateJWT(appID int64, privateKeyPath string) string {
+func generateJWT(appID int64, privateKeyPath string) (string, error) {
 	privateKey, err := os.ReadFile(privateKeyPath)
-	utils.RespError(err)
+	if err != nil {
+		return "", err
+	}
 
 	parsedKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKey)
-	utils.RespError(err)
+	if err != nil {
+		return "", err
+	}
 
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
@@ -144,7 +163,9 @@ func generateJWT(appID int64, privateKeyPath string) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
 	signedToken, err := token.SignedString(parsedKey)
-	utils.RespError(err)
+	if err != nil {
+		return "", err
+	}
 
-	return signedToken
+	return signedToken, nil
 }
