@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
@@ -37,15 +38,25 @@ func (c *AppConfig) InitClient() (*github.Client, error) {
 }
 
 func InitConfig() (GithubClient, error) {
-	// determine type (app or pat)
+	// determine type (PAT, PAT_FROM_FILE, or APP)
 	var auth GithubClient
 	authType := os.Getenv("GITHUB_AUTH_TYPE")
-	if authType == "PAT" {
+	switch authType {
+	case "PAT":
 		auth = &TokenConfig{
 			Token: os.Getenv("GITHUB_TOKEN"),
 		}
 
-	} else if authType == "APP" {
+	case "TOKEN":
+		tokenPath := os.Getenv("GITHUB_TOKEN_PATH")
+		if tokenPath == "" {
+			return nil, fmt.Errorf("GITHUB_TOKEN_PATH is required when GITHUB_AUTH_TYPE is TOKEN")
+		}
+		auth = &TokenConfig{
+			TokenPath: tokenPath,
+		}
+
+	case "APP":
 		appID, err := strconv.ParseInt(os.Getenv("GITHUB_APP_ID"), 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse GITHUB_APP_ID: %w", err)
@@ -67,7 +78,8 @@ func InitConfig() (GithubClient, error) {
 			RepoName:       os.Getenv("GITHUB_REPO_NAME"),
 			PrivateKeyPath: os.Getenv("GITHUB_PRIVATE_KEY_PATH"),
 		}
-	} else {
+
+	default:
 		return nil, fmt.Errorf("invalid auth type")
 	}
 
@@ -77,14 +89,36 @@ func InitConfig() (GithubClient, error) {
 
 // Helper function to allow testing client initialization with custom http clients
 func initTokenClient(c *TokenConfig, httpClient *http.Client) (*github.Client, error) {
+	token, err := resolveToken(c)
+	if err != nil {
+		return nil, err
+	}
 	if httpClient == http.DefaultClient {
 		ctx := context.Background()
 		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: c.Token},
+			&oauth2.Token{AccessToken: token},
 		)
 		httpClient = oauth2.NewClient(ctx, ts)
 	}
 	return github.NewClient(httpClient), nil
+}
+
+// resolveToken returns the GitHub token to use. When TokenPath is set the file
+// is read on every call, allowing short-lived/rotated tokens to be picked up
+// automatically without restarting the process.
+func resolveToken(c *TokenConfig) (string, error) {
+	if c.TokenPath == "" {
+		return c.Token, nil
+	}
+	data, err := os.ReadFile(c.TokenPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read token file %q: %w", c.TokenPath, err)
+	}
+	token := strings.TrimSpace(string(data))
+	if token == "" {
+		return "", fmt.Errorf("token file %q is empty", c.TokenPath)
+	}
+	return token, nil
 }
 
 // Helper function to allow testing client initialization with custom http clients
