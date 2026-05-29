@@ -34,10 +34,10 @@ docker run -d \
     ghcr.io/kalgurn/grl-exporter:latest
 ```
 
-PAT from file (the token is re-read from disk on every scrape, so rotated/short-lived tokens are picked up automatically)
+TOKEN from file (the token is re-read from disk on every scrape, so rotated/short-lived tokens are picked up automatically)
 ```sh
 docker run -d \
-    -e GITHUB_AUTH_TYPE=TOKEN \
+    -e GITHUB_AUTH_TYPE=TOKEN_FROM_PATH \
     -e GITHUB_ACCOUNT_NAME=name_of_my_app \
     -e GITHUB_TOKEN_PATH=/var/run/secrets/github/token \
     -v $PWD/path_to/token:/var/run/secrets/github/token:ro \
@@ -62,7 +62,7 @@ docker run -d \
 
 | Variable                  | Required for                       | Description                                                                                          |
 |---------------------------|------------------------------------|------------------------------------------------------------------------------------------------------|
-| `GITHUB_AUTH_TYPE`        | all                                | One of `PAT`, `TOKEN`, `APP`.                                                                |
+| `GITHUB_AUTH_TYPE`        | all                                | One of `PAT`, `TOKEN_FROM_PATH`, `APP`.                                                                |
 | `GITHUB_ACCOUNT_NAME`     | all                                | Value used as the `account` Prometheus label.                                                        |
 | `GITHUB_TOKEN`            | `PAT`                              | The GitHub Personal Access Token.                                                                    |
 | `GITHUB_TOKEN_PATH`       | `TOKEN`                    | Path to a file containing the GitHub token. Read on every scrape to support rotation.                |

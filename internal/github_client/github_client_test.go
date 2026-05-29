@@ -115,7 +115,7 @@ func TestInitConfigPAT(t *testing.T) {
 }
 
 func TestInitConfigPATFromFile(t *testing.T) {
-	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN")
+	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN_FROM_PATH")
 	t.Setenv("GITHUB_TOKEN_PATH", "/var/run/secrets/github/token")
 
 	testAuth := &TokenConfig{
@@ -128,7 +128,7 @@ func TestInitConfigPATFromFile(t *testing.T) {
 }
 
 func TestInitConfigPATFromFileMissingPath(t *testing.T) {
-	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN")
+	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN_FROM_PATH")
 	t.Setenv("GITHUB_TOKEN_PATH", "")
 
 	_, err := InitConfig()

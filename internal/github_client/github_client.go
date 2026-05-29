@@ -47,10 +47,10 @@ func InitConfig() (GithubClient, error) {
 			Token: os.Getenv("GITHUB_TOKEN"),
 		}
 
-	case "TOKEN":
+	case "TOKEN_FROM_PATH":
 		tokenPath := os.Getenv("GITHUB_TOKEN_PATH")
 		if tokenPath == "" {
-			return nil, fmt.Errorf("GITHUB_TOKEN_PATH is required when GITHUB_AUTH_TYPE is TOKEN")
+			return nil, fmt.Errorf("GITHUB_TOKEN_PATH is required when GITHUB_AUTH_TYPE is TOKEN_FROM_PATH")
 		}
 		auth = &TokenConfig{
 			TokenPath: tokenPath,
