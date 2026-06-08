@@ -38,7 +38,7 @@ func (c *AppConfig) InitClient() (*github.Client, error) {
 }
 
 func InitConfig() (GithubClient, error) {
-	// determine type (PAT, PAT_FROM_FILE, or APP)
+	// determine type (PAT, TOKEN_FROM_PATH, or APP)
 	var auth GithubClient
 	authType := os.Getenv("GITHUB_AUTH_TYPE")
 	switch authType {
