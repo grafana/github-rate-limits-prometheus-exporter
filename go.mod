@@ -2,7 +2,7 @@ module github.com/kalgurn/github-rate-limits-prometheus-exporter
 
 go 1.24
 
-toolchain go1.26.3
+toolchain go1.26.4
 
 require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.2.0
