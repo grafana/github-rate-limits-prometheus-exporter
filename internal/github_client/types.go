@@ -1,7 +1,7 @@
 package github_client
 
 import (
-	"github.com/google/go-github/v65/github"
+	"github.com/google/go-github/v88/github"
 )
 
 type AppConfig struct {
