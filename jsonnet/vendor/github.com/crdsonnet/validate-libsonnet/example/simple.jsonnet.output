@@ -1,0 +1,8 @@
+TRACE: main.libsonnet:95 
+Invalid parameters:
+  Parameter arg is invalid.
+RUNTIME ERROR: Assertion failed
+	example/simple.jsonnet:(4:3)-(7:29)	
+	example/simple.jsonnet:9:1-12	$
+	During evaluation	
+
