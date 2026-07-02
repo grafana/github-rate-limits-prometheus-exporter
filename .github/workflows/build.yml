@@ -25,6 +25,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      tag: ${{ steps.calculate-main-tag.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -60,3 +62,86 @@ jobs:
           environment: ${{ github.event_name == 'pull_request' && 'dev' || 'prod' }}
           push: ${{ github.event_name != 'pull_request' }}
           build-args: "version=${{ steps.calculate-main-tag.outputs.tag }}"
+
+  roll-out:
+    name: Roll the release out
+    needs:
+      - build
+    if: github.event_name == 'push' && github.repository == 'grafana/github-rate-limits-prometheus-exporter'
+    runs-on: ubuntu-arm64-small
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      pull-requests: 'read'
+
+    steps:
+      - id: find-commit-pr
+        uses: octokit/graphql-action@ddde8ebb2493e79f390e6449c725c21663a67505 # v3.0.2
+        name: Find PR for commit
+        with:
+          query: |
+            query associatedPRs($sha: String, $repo: String!, $owner: String!) {
+              repository(name: $repo, owner: $owner) {
+                object(expression: $sha) {
+                ... on Commit {
+                    associatedPullRequests(first: 5) {
+                      edges {
+                        node {
+                          number
+                          commits(first: 1) {
+                            edges {
+                              node {
+                                commit {
+                                  committedDate
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          variables: |
+            owner: ${{ github.event.repository.owner.name }}
+            repo: ${{ github.event.repository.name }}
+            sha: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: extract-pr-number
+        name: Extract PR number
+        env:
+          PR: ${{ fromjson(steps.find-commit-pr.outputs.data).repository.object.associatedPullRequests.edges[0].node.number }}
+          FIRST_COMMIT_TS: ${{ fromjson(steps.find-commit-pr.outputs.data).repository.object.associatedPullRequests.edges[0].node.commits.edges[0].node.commit.committedDate }}
+          REPO_OWNER: "${{ github.event.repository.owner.name }}"
+          REPO_NAME: "${{ github.event.repository.name }}"
+        run: |
+          if [ -z "${PR}" ]; then
+            echo "No PR found, skipping..."
+            echo "contextMessage=\"\"" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "This commit was from PR ${PR}"
+
+          echo "contextMessage=This deployment was triggered by [this pull request](https://github.com/${REPO_OWNER}/${REPO_NAME}/pull/${PR})." >> "${GITHUB_OUTPUT}"
+          echo "number=${PR}" >> "${GITHUB_OUTPUT}"
+          cat "${GITHUB_OUTPUT}"
+
+      - id: 'submit-argowfs-deployment'
+        name: 'Submit Argo Workflows deployment'
+        uses: grafana/shared-workflows/actions/trigger-argo-workflow@5a212d56e9d224851dc4b3c2643bbc5bac484d5d # trigger-argo-workflow/v2.0.0
+        with:
+          namespace: 'release-cd'
+          workflow_template: 'github-rate-limit-exporter'
+          parameters: |
+            dockertag=${{ needs.build.outputs.tag }}
+            prCommentContext=${{ steps.extract-pr-number.outputs.contextMessage }}
+      - name: Print URI
+        env:
+          AW_URI: "${{ steps.submit-argowfs-deployment.outputs.uri }}"
+        run: |
+          echo "URI: ${AW_URI}"
