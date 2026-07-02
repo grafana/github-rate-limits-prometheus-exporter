@@ -40,13 +40,23 @@ jobs:
         run: |
           go test ./... -v
 
+      # Note that the tag is actually only used for pushing images from the
+      # default branch. In the PR context it's generated for debugging
+      # purposes.
+      - name: Calculate tag
+        id: calculate-main-tag
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          echo "tag=main-$(date +'%Y-%m-%d')-${SHA}" | tee -a "${GITHUB_OUTPUT}"
+
       - id: push-to-gar
         uses: grafana/shared-workflows/actions/push-to-gar-docker@cb554367777b86e817f51da741a8be143f3582dc
         with:
           tags: |-
             type=raw,value=latest
-            type=sha,format=long,prefix={{branch}}-,enable=${{ github.event_name == 'push' && 'true' || 'false' }}
+            type=raw,enable={{is_default_branch}},value=${{ steps.calculate-main-tag.outputs.tag }}
           platforms: linux/amd64${{ github.event_name == 'push' && ',linux/arm64' || ''}}
           image_name: "github-rate-limit-prometheus-exporter"
           environment: ${{ github.event_name == 'pull_request' && 'dev' || 'prod' }}
           push: ${{ github.event_name != 'pull_request' }}
+          build-args: "version=${{ steps.calculate-main-tag.outputs.tag }}"

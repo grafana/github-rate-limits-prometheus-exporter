@@ -10,6 +10,7 @@ type LimitsCollector struct {
 	LimitRemaining *prometheus.Desc
 	LimitUsed      *prometheus.Desc
 	SecondsLeft    *prometheus.Desc
+	BuildInfo      *prometheus.Desc
 
 	ghClient github_client.GithubClient
 }
