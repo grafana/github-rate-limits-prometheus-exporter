@@ -2,6 +2,8 @@ package prometheus_exporter
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/github_client"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 )
 
 var (
@@ -38,6 +41,11 @@ func newLimitsCollector(ghClient github_client.GithubClient) *LimitsCollector {
 			nil, prometheus.Labels{
 				"account": githubAccount,
 			}),
+		BuildInfo: prometheus.NewDesc(prometheus.BuildFQName("github", "limit", "build_info"),
+			"Build info",
+			[]string{"version"},
+			nil,
+		),
 
 		ghClient: ghClient,
 	}
@@ -48,6 +56,7 @@ func (collector *LimitsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.LimitRemaining
 	ch <- collector.LimitUsed
 	ch <- collector.SecondsLeft
+	ch <- collector.BuildInfo
 }
 
 func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -73,21 +82,34 @@ func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
 	m2 := prometheus.MustNewConstMetric(collector.LimitRemaining, prometheus.GaugeValue, float64(limits.Remaining))
 	m3 := prometheus.MustNewConstMetric(collector.LimitUsed, prometheus.GaugeValue, float64(limits.Used))
 	m4 := prometheus.MustNewConstMetric(collector.SecondsLeft, prometheus.GaugeValue, limits.SecondsLeft)
+	m5 := prometheus.MustNewConstMetric(collector.BuildInfo, prometheus.GaugeValue, 1, version.Version)
 	m1 = prometheus.NewMetricWithTimestamp(time.Now(), m1)
 	m2 = prometheus.NewMetricWithTimestamp(time.Now(), m2)
 	m3 = prometheus.NewMetricWithTimestamp(time.Now(), m3)
 	m4 = prometheus.NewMetricWithTimestamp(time.Now(), m4)
+	m5 = prometheus.NewMetricWithTimestamp(time.Now(), m5)
 	ch <- m1
 	ch <- m2
 	ch <- m3
 	ch <- m4
+	ch <- m5
 }
 
 func Run() {
+	var showVersion bool
+	flag.BoolVar(&showVersion, "version", false, "Show version information")
+	flag.Parse()
+
+	if showVersion {
+		fmt.Println(version.Print("github_limit"))
+		return
+	}
+
 	auth, err := github_client.InitConfig()
 	if err != nil {
 		log.Fatalf("failed to initialize GitHub client config: %s", err.Error())
 	}
+
 	limit := newLimitsCollector(auth)
 	prometheus.NewRegistry()
 	prometheus.MustRegister(limit)

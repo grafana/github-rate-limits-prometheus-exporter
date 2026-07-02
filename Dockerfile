@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM golang:1.26.4-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648 AS build
+ARG version
 
 WORKDIR /app
 
@@ -10,8 +11,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 RUN go mod download
 
-RUN CGO_ENABLED=0 GO111MODULE=auto go build -o /grl-exporter cmd/prometheus_exporter/main.go
-RUN ls -la
+RUN CGO_ENABLED=0 GO111MODULE=auto go build -ldflags "-X github.com/prometheus/common/version.Version=${version}" -o /grl-exporter cmd/prometheus_exporter/main.go
 
 FROM gcr.io/distroless/base-debian11
 

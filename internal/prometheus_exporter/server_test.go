@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/common/version"
 )
 
 type FakeCollector struct {
@@ -17,6 +18,7 @@ type FakeCollector struct {
 	LimitRemaining *prometheus.Desc
 	LimitUsed      *prometheus.Desc
 	SecondsLeft    *prometheus.Desc
+	BuildInfo      *prometheus.Desc
 }
 
 func newFakeCollector() *LimitsCollector {
@@ -33,6 +35,9 @@ func newFakeCollector() *LimitsCollector {
 		SecondsLeft: prometheus.NewDesc(prometheus.BuildFQName(githubAccount, "", "seconds_left"),
 			"Time left in seconds until limit is reset for the installation",
 			nil, nil),
+		BuildInfo: prometheus.NewDesc(prometheus.BuildFQName(githubAccount, "", "build_info"),
+			"build info",
+			[]string{"version"}, nil),
 	}
 }
 
@@ -41,6 +46,7 @@ func (collector *FakeCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- collector.LimitRemaining
 	ch <- collector.LimitUsed
 	ch <- collector.SecondsLeft
+	ch <- collector.BuildInfo
 }
 
 func (collector *FakeCollector) Collect(ch chan<- prometheus.Metric) {
@@ -52,14 +58,17 @@ func (collector *FakeCollector) Collect(ch chan<- prometheus.Metric) {
 	m2 := prometheus.MustNewConstMetric(collector.LimitRemaining, prometheus.GaugeValue, float64(6))
 	m3 := prometheus.MustNewConstMetric(collector.LimitUsed, prometheus.GaugeValue, float64(4))
 	m4 := prometheus.MustNewConstMetric(collector.SecondsLeft, prometheus.GaugeValue, time.Duration(time.Second*30).Seconds())
+	m5 := prometheus.MustNewConstMetric(collector.BuildInfo, prometheus.GaugeValue, 1, version.Version)
 	m1 = prometheus.NewMetricWithTimestamp(time.Now().Add(-time.Hour), m1)
 	m2 = prometheus.NewMetricWithTimestamp(time.Now(), m2)
 	m3 = prometheus.NewMetricWithTimestamp(time.Now(), m3)
 	m4 = prometheus.NewMetricWithTimestamp(time.Now(), m4)
+	m5 = prometheus.NewMetricWithTimestamp(time.Now(), m5)
 	ch <- m1
 	ch <- m2
 	ch <- m3
 	ch <- m4
+	ch <- m5
 }
 
 func TestNewLimitsCollector(t *testing.T) {
