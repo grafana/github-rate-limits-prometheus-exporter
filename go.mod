@@ -14,7 +14,7 @@ require (
 )
 
 require (
-	github.com/golang-jwt/jwt/v5 v5.2.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/prometheus/common v0.66.1
 )
 
