@@ -35,7 +35,7 @@ func newFakeCollector() *LimitsCollector {
 		SecondsLeft: prometheus.NewDesc(prometheus.BuildFQName(githubAccount, "", "seconds_left"),
 			"Time left in seconds until limit is reset for the installation",
 			nil, nil),
-		BuildInfo: prometheus.NewDesc(prometheus.BuildFQName(githubAccount, "", "build_infoj"),
+		BuildInfo: prometheus.NewDesc(prometheus.BuildFQName(githubAccount, "", "build_info"),
 			"build info",
 			[]string{"version"}, nil),
 	}
