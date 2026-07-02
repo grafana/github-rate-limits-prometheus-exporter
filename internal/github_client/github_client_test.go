@@ -87,6 +87,8 @@ func TestInitConfigApp(t *testing.T) {
 	t.Setenv("GITHUB_APP_ID", "1")
 	t.Setenv("GITHUB_INSTALLATION_ID", "1")
 	t.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
+	t.Setenv("GITHUB_REPO_NAME", "")
+	t.Setenv("GITHUB_ORG_NAME", "")
 
 	testAuth := &AppConfig{
 		AppID:          1,
@@ -175,6 +177,7 @@ func TestInitConfigAppWithoutInstallationID(t *testing.T) {
 	t.Setenv("GITHUB_AUTH_TYPE", "APP")
 	t.Setenv("GITHUB_APP_ID", "1")
 	t.Setenv("GITHUB_ORG_NAME", "org")
+	t.Setenv("GITHUB_REPO_NAME", "")
 	t.Setenv("GITHUB_PRIVATE_KEY_PATH", "/home")
 
 	testAuth := &AppConfig{
