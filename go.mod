@@ -1,4 +1,4 @@
-module github.com/kalgurn/github-rate-limits-prometheus-exporter
+module github.com/grafana/github-rate-limits-prometheus-exporter
 
 go 1.25.0
 

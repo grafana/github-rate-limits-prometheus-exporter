@@ -1,7 +1,7 @@
 package prometheus_exporter
 
 import (
-	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/github_client"
+	"github.com/grafana/github-rate-limits-prometheus-exporter/internal/github_client"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

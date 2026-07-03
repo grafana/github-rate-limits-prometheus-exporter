@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/kalgurn/github-rate-limits-prometheus-exporter/internal/github_client"
+	"github.com/grafana/github-rate-limits-prometheus-exporter/internal/github_client"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
