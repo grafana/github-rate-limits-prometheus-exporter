@@ -15,7 +15,7 @@ require (
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
-	github.com/prometheus/common v0.69.0
+	github.com/prometheus/common v0.70.0
 )
 
 require (
@@ -27,7 +27,6 @@ require (
 	github.com/google/go-github/v88 v88.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
