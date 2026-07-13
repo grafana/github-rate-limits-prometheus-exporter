@@ -10,7 +10,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/go-github/v65/github"
+	"github.com/google/go-github/v89/github"
 	"golang.org/x/oauth2"
 )
 
