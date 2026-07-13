@@ -84,7 +84,7 @@ func initTokenClient(c *TokenConfig, httpClient *http.Client) (*github.Client, e
 		)
 		httpClient = oauth2.NewClient(ctx, ts)
 	}
-	return github.NewClient(httpClient), nil
+	return github.NewClient(github.WithHTTPClient(httpClient))
 }
 
 // Helper function to allow testing client initialization with custom http clients
@@ -109,9 +109,9 @@ func initAppClient(c *AppConfig, httpClient *http.Client) (*github.Client, error
 		var installation *github.Installation
 		ctx := context.Background()
 		if c.RepoName != "" {
-			installation, _, err = client.Apps.FindRepositoryInstallation(ctx, c.OrgName, c.RepoName)
+			installation, _, err = client.Apps.GetRepositoryInstallation(ctx, c.OrgName, c.RepoName)
 		} else {
-			installation, _, err = client.Apps.FindOrganizationInstallation(ctx, c.OrgName)
+			installation, _, err = client.Apps.GetOrganizationInstallation(ctx, c.OrgName)
 		}
 		if err != nil {
 			return nil, err
@@ -139,7 +139,7 @@ func initAppClient(c *AppConfig, httpClient *http.Client) (*github.Client, error
 		httpClient.Transport = itr
 	}
 
-	return github.NewClient(httpClient), nil
+	return github.NewClient(github.WithHTTPClient(httpClient))
 }
 
 // Helper function to generate JWT for GitHub App

@@ -67,7 +67,8 @@ func TestGetRemainingLimits(t *testing.T) {
 			},
 		),
 	)
-	c := github.NewClient(mockedHTTPClient)
+	c, err := github.NewClient(github.WithHTTPClient(mockedHTTPClient))
+	require.NoError(t, err)
 	limits, err := GetRemainingLimits(c, context.Background())
 	require.NoError(t, err)
 
