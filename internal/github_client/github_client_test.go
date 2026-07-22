@@ -114,6 +114,135 @@ func TestInitConfigPAT(t *testing.T) {
 
 }
 
+func TestInitConfigPATFromFile(t *testing.T) {
+	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN_FROM_PATH")
+	t.Setenv("GITHUB_TOKEN_PATH", "/var/run/secrets/github/token")
+
+	testAuth := &TokenConfig{
+		TokenPath: "/var/run/secrets/github/token",
+	}
+
+	patInitConfig, err := InitConfig()
+	require.NoError(t, err)
+	assert.Equal(t, testAuth, patInitConfig, "should be equal")
+}
+
+func TestInitConfigPATFromFileMissingPath(t *testing.T) {
+	t.Setenv("GITHUB_AUTH_TYPE", "TOKEN_FROM_PATH")
+	t.Setenv("GITHUB_TOKEN_PATH", "")
+
+	_, err := InitConfig()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "GITHUB_TOKEN_PATH")
+}
+
+func TestInitConfigPATIgnoresTokenPath(t *testing.T) {
+	// With GITHUB_AUTH_TYPE=PAT, GITHUB_TOKEN_PATH must not be picked up;
+	// users must opt in via TOKEN.
+	t.Setenv("GITHUB_AUTH_TYPE", "PAT")
+	t.Setenv("GITHUB_TOKEN", "static-token")
+	t.Setenv("GITHUB_TOKEN_PATH", "/var/run/secrets/github/token")
+
+	testAuth := &TokenConfig{
+		Token: "static-token",
+	}
+
+	patInitConfig, err := InitConfig()
+	require.NoError(t, err)
+	assert.Equal(t, testAuth, patInitConfig, "should be equal")
+}
+
+func TestResolveToken(t *testing.T) {
+	t.Run("returns static token when TokenPath is empty", func(t *testing.T) {
+		token, err := resolveToken(&TokenConfig{Token: "static-token"})
+		require.NoError(t, err)
+		assert.Equal(t, "static-token", token)
+	})
+
+	t.Run("reads token from file when TokenPath is set", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("file-token"), 0600))
+
+		token, err := resolveToken(&TokenConfig{TokenPath: path})
+		require.NoError(t, err)
+		assert.Equal(t, "file-token", token)
+	})
+
+	t.Run("TokenPath takes precedence over Token if both are set", func(t *testing.T) {
+		// Defensive: InitConfig never populates both fields, but the resolver
+		// should still prefer the file when given a TokenConfig with both.
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("file-token"), 0600))
+
+		token, err := resolveToken(&TokenConfig{
+			Token:     "static-token",
+			TokenPath: path,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "file-token", token)
+	})
+
+	t.Run("trims surrounding whitespace from token file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("  file-token\n"), 0600))
+
+		token, err := resolveToken(&TokenConfig{TokenPath: path})
+		require.NoError(t, err)
+		assert.Equal(t, "file-token", token)
+	})
+
+	t.Run("re-reads file on every call to support rotation", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("first-token"), 0600))
+
+		c := &TokenConfig{TokenPath: path}
+
+		token1, err := resolveToken(c)
+		require.NoError(t, err)
+		assert.Equal(t, "first-token", token1)
+
+		// Simulate the token being rotated on disk
+		require.NoError(t, os.WriteFile(path, []byte("second-token"), 0600))
+
+		token2, err := resolveToken(c)
+		require.NoError(t, err)
+		assert.Equal(t, "second-token", token2)
+	})
+
+	t.Run("returns error when token file does not exist", func(t *testing.T) {
+		_, err := resolveToken(&TokenConfig{TokenPath: "/nonexistent/token"})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "failed to read token file")
+	})
+
+	t.Run("returns error when token file is empty", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("   \n"), 0600))
+
+		_, err := resolveToken(&TokenConfig{TokenPath: path})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "is empty")
+	})
+}
+
+func TestInitTokenClient_WithTokenPath(t *testing.T) {
+	t.Run("succeeds with valid token file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "token")
+		require.NoError(t, os.WriteFile(path, []byte("file-token"), 0600))
+
+		c := &TokenConfig{TokenPath: path}
+		client, err := initTokenClient(c, http.DefaultClient)
+		require.NoError(t, err)
+		require.NotNil(t, client)
+	})
+
+	t.Run("fails when token file is missing", func(t *testing.T) {
+		c := &TokenConfig{TokenPath: "/nonexistent/token"}
+		_, err := initTokenClient(c, http.DefaultClient)
+		require.Error(t, err)
+	})
+}
+
 func TestInitConfigFailure(t *testing.T) {
 	tests := []struct {
 		name    string
