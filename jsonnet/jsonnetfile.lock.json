@@ -4,22 +4,42 @@
     {
       "source": {
         "git": {
-          "remote": "https://github.com/Duologic/crdsonnet.git",
-          "subdir": "crdsonnet"
-        }
-      },
-      "version": "8a8fd363278d51958dab84904f5de01499f46541",
-      "sum": "PSt+yD92LJ5T2l1DbMirrX4jiiTIa93TAGrA7Y/I1gQ="
-    },
-    {
-      "source": {
-        "git": {
           "remote": "https://github.com/Duologic/drone-libsonnet.git",
           "subdir": ""
         }
       },
-      "version": "d7ca5b07553d9e264d12769f749fc39a943b51db",
-      "sum": "4PChvM//AeU4o4fuG9A30LqaQ0VoSXXXl48FI1X7I6A="
+      "version": "fde2054b4a1794c146292f1dfda1948dd896df60",
+      "sum": "QcIGXY6lvgBOvOsE7a2wiauRsSRfm0dRopFPj4Fbyg8="
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/crdsonnet/astsonnet.git",
+          "subdir": ""
+        }
+      },
+      "version": "3d6c89b30321ff4f5f55158bd48a91d745a3dfe6",
+      "sum": "NTet3g9kU+/zU5N1f/vvR1WwivDz+tAC5pznx95Y9Mk="
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/crdsonnet/crdsonnet.git",
+          "subdir": "crdsonnet"
+        }
+      },
+      "version": "f2f3c043f329edd4dd59ba89128258a59ee3363e",
+      "sum": "2nG91akk1UMbxn99gyQ1A29zn/5jiHM+0ovsw+DgCYM="
+    },
+    {
+      "source": {
+        "git": {
+          "remote": "https://github.com/crdsonnet/validate-libsonnet.git",
+          "subdir": ""
+        }
+      },
+      "version": "6892dcbb6440a6882007a2e035a7fa331c71c6f0",
+      "sum": "7CDZQ/l+BF8hhqwwjec75fp/pOKUcjgZdBeh9dd14Nw="
     },
     {
       "source": {
@@ -28,8 +48,8 @@
           "subdir": "doc-util"
         }
       },
-      "version": "e7f3020f5733ac3dd0a1998f49591a5afd24948d",
-      "sum": "YGiXub+RVwXffay0ejuoFXjkf13dinl5nD61DcpJHpc="
+      "version": "bf6f08ae02a51c48bdcec4629b1c1a5a62c6f803",
+      "sum": "BrAL/k23jq+xy9oA7TWIhUx07dsA/QLm3g7ktCwe//U="
     },
     {
       "source": {
@@ -38,8 +58,8 @@
           "subdir": ""
         }
       },
-      "version": "55e3a45de3bb72cee76c879f09a7ad7a476cc13f",
-      "sum": "cAgY2tMVilrhpyTOcvZZGBfQJMUkJAhM4DdaL1RHKOM="
+      "version": "4d7f8cb24d613430799f9d56809cc6964f35cea9",
+      "sum": "hOrwkOx34tOXqoDVnwuI/Uf/dr9HFFSPWpDPOvnEGrk="
     }
   ],
   "legacyImports": false
