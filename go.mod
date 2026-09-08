@@ -1,6 +1,6 @@
 module github.com/grafana/github-rate-limits-prometheus-exporter
 
-go 1.25.0
+go 1.26.0
 
 toolchain go1.27.1
 
@@ -10,7 +10,7 @@ require (
 	github.com/migueleliasweb/go-github-mock v1.5.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
