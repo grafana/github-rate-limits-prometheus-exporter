@@ -43,7 +43,7 @@ func newLimitsCollector(ghClient github_client.GithubClient) *LimitsCollector {
 			}),
 		BuildInfo: prometheus.NewDesc(prometheus.BuildFQName("github", "limit", "build_info"),
 			"Build info",
-			[]string{"version"},
+			[]string{"version", "goos", "goarch", "goversion"},
 			nil,
 		),
 
@@ -82,7 +82,7 @@ func (collector *LimitsCollector) Collect(ch chan<- prometheus.Metric) {
 	m2 := prometheus.MustNewConstMetric(collector.LimitRemaining, prometheus.GaugeValue, float64(limits.Remaining))
 	m3 := prometheus.MustNewConstMetric(collector.LimitUsed, prometheus.GaugeValue, float64(limits.Used))
 	m4 := prometheus.MustNewConstMetric(collector.SecondsLeft, prometheus.GaugeValue, limits.SecondsLeft)
-	m5 := prometheus.MustNewConstMetric(collector.BuildInfo, prometheus.GaugeValue, 1, version.Version)
+	m5 := prometheus.MustNewConstMetric(collector.BuildInfo, prometheus.GaugeValue, 1, version.Version, version.GoOS, version.GoArch, version.GoVersion)
 	m1 = prometheus.NewMetricWithTimestamp(time.Now(), m1)
 	m2 = prometheus.NewMetricWithTimestamp(time.Now(), m2)
 	m3 = prometheus.NewMetricWithTimestamp(time.Now(), m3)
